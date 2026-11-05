@@ -1,0 +1,10 @@
+# Seuls l'application, ses dépendances et le pilote natif entrent dans l'image.
+# Jamais de secrets, de venv local, de sources de build ni d'archives.
+*
+!pyproject.toml
+!uv.lock
+!api/
+!extractor/
+!driver/
+**/__pycache__
+**/*.pyc

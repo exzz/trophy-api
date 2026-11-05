@@ -1,0 +1,23 @@
+[project]
+name = "trophy-api"
+version = "0.1.0"
+description = "API lecture seule (patients, planning) sur CS Trophy Gestion (HFSQL), auto-hebergee."
+readme = "README.md"
+requires-python = ">=3.12"
+# Le client HFSQL (extractor/hfsql.py) n'utilise que la stdlib + ctypes.
+# Prerequis systeme hors pip : iODBC (libiodbc2) + pilote HFSQL v25 dans driver/.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+# Application, pas une bibliotheque : rien a construire ni a publier.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]  # extractor/test_connect.py est un script manuel, pas un test

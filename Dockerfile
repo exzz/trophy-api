@@ -30,7 +30,8 @@ FROM ${UBUNTU}
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 libiodbc2 \
  && rm -rf /var/lib/apt/lists/* \
- && useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin trophy
+ && groupadd --system --gid 10011 app_trophy \
+ && useradd --system --uid 10011 --gid 10011 --home-dir /app --shell /usr/sbin/nologin app_trophy
 
 WORKDIR /app
 COPY --from=construction /app/.venv /app/.venv
@@ -47,7 +48,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     TROPHY_DRIVER=/app/driver/wd250hfo64.so \
     TROPHY_SETTINGS=/config/settings.json
 
-USER trophy
+USER app_trophy
 EXPOSE 8333
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

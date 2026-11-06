@@ -4,9 +4,8 @@ Via hfsql.py (iODBC en ANSI) — pyodbc est incompatible avec le pilote PC SOFT
 sous iODBC. Liste tables, colonnes et nombre de lignes, et écrit schema.json.
 Aucune donnée patient n'est affichée : seulement noms et totaux.
 
-    source env.sh
-    export TROPHY_UID=api_lecture TROPHY_PWD=...
-    python extractor/discover.py [--no-counts] [--like RDV] [--out schema.json]
+    # Config dans settings.json (voir api/config.py).
+    uv run python extractor/discover.py [--no-counts] [--like RDV] [--out schema.json]
 """
 
 from __future__ import annotations
@@ -17,7 +16,9 @@ import os
 import sys
 from datetime import datetime, timezone
 
-import hfsql
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import hfsql  # noqa: E402
+from api import config, trophy  # noqa: E402
 
 
 def main() -> None:
@@ -27,16 +28,9 @@ def main() -> None:
     ap.add_argument("--out", default="schema.json", help="fichier de sortie JSON")
     args = ap.parse_args()
 
-    server = os.environ.get("TROPHY_SERVER", "100.79.174.114")
-    port = os.environ.get("TROPHY_PORT", "4902")
-    database = os.environ.get("TROPHY_DB", "Datas")
-    driver = os.environ["TROPHY_DRIVER"]
-    uid = os.environ.get("TROPHY_UID")
-    pwd = os.environ.get("TROPHY_PWD")
-    if not uid or pwd is None:
-        sys.exit("Définir TROPHY_UID et TROPHY_PWD (compte HFSQL en lecture seule).")
-
-    conn = hfsql.Connection(server, port, database, uid, pwd, driver)
+    h = config.settings()["hfsql"]
+    conn = trophy.make_connection()
+    server, database = h["server"], h["database"]
 
     tables = conn.tables()
     if args.like:

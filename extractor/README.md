@@ -50,15 +50,11 @@ Ne pas réutiliser le compte applicatif de Trophy pour l'API.
 
 ## 3. Configurer et lancer la découverte
 
-```bat
-set TROPHY_SERVER=SERVEUR1
-set TROPHY_PORT=4902
-set TROPHY_DB=Datas
-set TROPHY_DRIVER=HFSQL
-set TROPHY_UID=api_lecture
-set TROPHY_PWD=********
+La connexion vient de `settings.json` à la racine du projet (voir
+`../api/config.py` et `../settings.example.json`). Depuis la racine :
 
-python discover.py
+```bash
+uv run python extractor/discover.py
 ```
 
 Le script liste les tables, leurs colonnes et leur nombre de lignes, et écrit

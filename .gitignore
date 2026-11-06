@@ -5,4 +5,5 @@ __pycache__/
 .download/
 .odbc-shim/
 odbc/odbc.ini
+settings.json
 # driver/ est suivi : le Dockerfile en a besoin pour builder l'image.

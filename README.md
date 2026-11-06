@@ -31,25 +31,37 @@ FastAPI (api/app.py)
 5. Dépendances : `uv sync` (crée `.venv` depuis `pyproject.toml` / `uv.lock`).
    Tests : `uv run pytest`.
 
-## Configuration (variables d'environnement)
+## Configuration (`settings.json`)
 
-`env.sh` règle iODBC et les paramètres de connexion. À fournir en plus :
+Toute la config (identifiants HFSQL + clé d'API) est dans **`settings.json`** à
+la racine, **hors git** (comme sterilog/medirappel). Copier l'exemple :
 
 ```bash
-source env.sh
-export TROPHY_UID=api_lecture
-export TROPHY_PWD='********'
-export TROPHY_API_KEY='une-cle-longue-et-aleatoire'
+cp settings.example.json settings.json   # puis renseigner password et api_key
+chmod 600 settings.json
 ```
+
+```json
+{
+  "hfsql": { "server": "100.79.174.114", "port": 4902, "database": "Datas",
+             "username": "api_lecture", "password": "********" },
+  "api_key": "une-cle-longue-et-aleatoire"
+}
+```
+
+Le chemin est surchargeable par `TROPHY_SETTINGS` (tests, conteneur). Le pilote
+natif est trouvé via `TROPHY_DRIVER` (défaut : `driver/wd250hfo64.so`).
 
 ## Lancer
 
 ```bash
-./api/run.sh                      # 127.0.0.1:8081 par défaut
-# ou : uvicorn api.app:app --host 127.0.0.1 --port 8081
+# dev (rechargement auto) :
+mise exec -- uv run uvicorn api.app:app --host 0.0.0.0 --port 8333 --reload
+# prod local :
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8333
 ```
 
-Doc interactive : http://127.0.0.1:8081/docs
+Doc interactive : http://127.0.0.1:8333/docs
 
 ## Endpoints
 
@@ -72,8 +84,8 @@ en minutes (`duree_min`). `RDV_EVENT` vaut `1` (RDV patient) ou `2` (événement
 plage bloquée), exposé tel quel + `evenement` (bool, `=2`).
 
 ```bash
-curl -H "X-API-Key: $TROPHY_API_KEY" \
-  "http://127.0.0.1:8081/appointments?practitioner=1&from=2026-01-05&to=2026-01-10"
+curl -H "X-API-Key: $API_KEY" \
+  "http://127.0.0.1:8333/appointments?practitioner=1&from=2026-01-05&to=2026-01-10"
 ```
 
 ## Sécurité (données de santé)
@@ -93,14 +105,15 @@ Image seule (pas de compose). Le pilote natif HFSQL (`driver/`) est embarqué.
 ```bash
 docker build -t trophy-api .
 docker run -d --name trophy-api --network host \
-  -e TROPHY_UID=api_lecture -e TROPHY_PWD='********' \
-  -e TROPHY_API_KEY='une-cle-longue-et-aleatoire' \
-  trophy-api            # écoute sur 8081
+  -v "$PWD/settings.json:/config/settings.json:ro" \
+  trophy-api            # écoute sur 8333
 ```
 
-- **`--network host`** : le serveur HFSQL est une IP **Tailscale** (`TROPHY_SERVER`),
-  joignable seulement via le réseau de l'hôte. Les secrets passent par `-e`
-  (ou `--env-file`), jamais dans l'image.
+- **`settings.json` monté dans `/config`** (lecture seule) : il porte les
+  identifiants HFSQL et la clé d'API ; jamais dans l'image. Le chemin interne
+  est fixé par `TROPHY_SETTINGS=/config/settings.json`.
+- **`--network host`** : le serveur HFSQL est une IP **Tailscale**
+  (`settings.json → hfsql.server`), joignable seulement via le réseau de l'hôte.
 - **Jamais `--workers > 1`** : une seule connexion HFSQL par process.
 - Serveur HS → le process sort (SQLSTATE 08xxx) ; laisser Docker le relancer
   (`--restart unless-stopped`) comme systemd.

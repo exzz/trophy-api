@@ -38,24 +38,22 @@ COPY api ./api
 COPY extractor ./extractor
 COPY driver ./driver
 
-# Les secrets ne sont JAMAIS dans l'image : TROPHY_UID / TROPHY_PWD /
-# TROPHY_API_KEY se passent au lancement (-e ou --env-file).
+# La config (identifiants HFSQL + api_key) n'est JAMAIS dans l'image :
+# settings.json se monte en lecture seule dans /config au lancement.
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     LD_LIBRARY_PATH=/app/driver \
     TROPHY_DRIVER=/app/driver/wd250hfo64.so \
-    TROPHY_SERVER=100.79.174.114 \
-    TROPHY_PORT=4902 \
-    TROPHY_DB=Datas
+    TROPHY_SETTINGS=/config/settings.json
 
 USER trophy
-EXPOSE 8081
+EXPOSE 8333
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health', timeout=4)"]
+  CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8333/health', timeout=4)"]
 
 # UN SEUL processus : le pilote HFSQL n'autorise qu'une connexion par process
 # (sur le thread principal). Jamais --workers > 1.
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8081", \
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8333", \
      "--no-server-header"]

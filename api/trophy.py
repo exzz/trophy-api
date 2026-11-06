@@ -19,20 +19,20 @@ from datetime import date
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "extractor"))
 import hfsql  # noqa: E402
 
+from . import config  # noqa: E402
+
 _DATE8 = re.compile(r"^\d{8}$")
 
 
 def make_connection():
-    """Ouvre UNE connexion HFSQL. Le pilote PC SOFT ne supporte pas d'ouvrir
-    une 2e connexion dans le même process (segfault) : l'API en garde une
-    seule, ouverte au démarrage et réutilisée (accès sérialisés)."""
+    """Ouvre UNE connexion HFSQL depuis settings.json. Le pilote PC SOFT ne
+    supporte pas d'ouvrir une 2e connexion dans le même process (segfault) :
+    l'API en garde une seule, ouverte au démarrage et réutilisée (sérialisée)."""
+    h = config.settings()["hfsql"]
+    # Le chemin du pilote est de l'infra (figé au conteneur) : env + défaut repo.
+    driver = os.environ.get("TROPHY_DRIVER", str(config.BASE_DIR / "driver" / "wd250hfo64.so"))
     return hfsql.Connection(
-        os.environ.get("TROPHY_SERVER", "100.79.174.114"),
-        os.environ.get("TROPHY_PORT", "4902"),
-        os.environ.get("TROPHY_DB", "Datas"),
-        os.environ["TROPHY_UID"],
-        os.environ["TROPHY_PWD"],
-        os.environ["TROPHY_DRIVER"],
+        h["server"], str(h["port"]), h["database"], h["username"], h["password"], driver,
     )
 
 

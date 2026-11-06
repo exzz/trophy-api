@@ -11,10 +11,8 @@ Contraintes du pilote HFSQL (iODBC) :
   réutilisée, accès sérialisés par un verrou.
 Si la connexion est perdue, relancer le service (ex. systemd Restart=always).
 
-Lancement :
-    source env.sh
-    export TROPHY_UID=api_lecture TROPHY_PWD=... TROPHY_API_KEY=...
-    uvicorn api.app:app --host 127.0.0.1 --port 8081
+Configuration dans settings.json (voir api/config.py). Lancement :
+    uv run uvicorn api.app:app --host 127.0.0.1 --port 8333
 """
 
 from __future__ import annotations
@@ -28,6 +26,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 
+import api.config as config
 import api.trophy as trophy
 
 log = logging.getLogger("trophy")
@@ -56,9 +55,7 @@ app = FastAPI(
 
 
 def require_key(x_api_key: str = Header(default="")):
-    expected = os.environ.get("TROPHY_API_KEY")
-    if not expected:
-        raise HTTPException(503, "TROPHY_API_KEY non configurée côté serveur.")
+    expected = config.settings()["api_key"]  # validée non vide au démarrage
     if not hmac.compare_digest(x_api_key, expected):  # comparaison à temps constant
         raise HTTPException(401, "Clé API invalide ou absente (en-tête X-API-Key).")
 

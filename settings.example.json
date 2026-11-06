@@ -1,0 +1,10 @@
+{
+  "hfsql": {
+    "server": "100.79.174.114",
+    "port": 4902,
+    "database": "Datas",
+    "username": "api_lecture",
+    "password": "changer-moi"
+  },
+  "api_key": "changer-moi-cle-longue-aleatoire"
+}

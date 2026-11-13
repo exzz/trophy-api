@@ -56,5 +56,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # UN SEUL processus : le pilote HFSQL n'autorise qu'une connexion par process
 # (sur le thread principal). Jamais --workers > 1.
+# --no-access-log : pas de journal d'accès (les URL contiennent des noms de
+# patients via ?q= et l'identifiant via /patients/{num}). Seules les erreurs
+# sont journalisées, et elles ne portent aucune donnée patient.
 CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8333", \
-     "--no-server-header"]
+     "--no-server-header", "--no-access-log"]

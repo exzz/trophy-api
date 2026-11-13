@@ -12,7 +12,9 @@ User=exz
 WorkingDirectory=/home/exz/local/trophy
 # Identifiants HFSQL + api_key dans settings.json (root-only, chmod 600).
 Environment=TROPHY_SETTINGS=/etc/trophy/settings.json
-ExecStart=/home/exz/local/trophy/.venv/bin/uvicorn api.app:app --host 127.0.0.1 --port 8333
+# --no-access-log : pas de noms patients (?q=) ni d'identifiants (/patients/{num})
+# dans le journal. Seules les erreurs sont tracées (sans donnée patient).
+ExecStart=/home/exz/local/trophy/.venv/bin/uvicorn api.app:app --host 127.0.0.1 --port 8333 --no-access-log
 Restart=always
 RestartSec=3
 

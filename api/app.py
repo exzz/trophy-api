@@ -65,14 +65,19 @@ async def run_db(fn):
 
     Le pilote PC SOFT ne supporte PAS de rouvrir une connexion dans le même
     process (segfault), même après close(). Donc pas de reconnexion en vol :
-    si la connexion est perdue (SQLSTATE 08xxx), on quitte le process et
-    systemd (Restart=always) en relance un neuf avec une connexion saine.
+    si la connexion est perdue (coupure réseau / serveur redémarré), on quitte
+    le process et le superviseur (systemd / Docker) en relance un neuf avec une
+    connexion saine.
     Les erreurs SQL (requête) remontent normalement (-> 502)."""
     async with app.state.lock:
         try:
             return fn(app.state.conn)
         except trophy.hfsql.HfsqlError as exc:
-            if "[08" in str(exc):  # 08xxx = connexion perdue
+            # Connexion perdue : le pilote PC SOFT émet [0100] + « communication
+            # … a échoué » / « Connection reset » (pas de SQLSTATE 08xxx standard).
+            msg = str(exc)
+            if ("[08" in msg or "Connection reset" in msg
+                    or "communication avec le serveur" in msg):
                 log.error("HFSQL connexion perdue, arrêt pour redémarrage : %s", exc)
                 os._exit(1)
             raise

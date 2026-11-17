@@ -9,7 +9,7 @@ via un petit client maison, exposé par une API REST FastAPI.
 FastAPI (api/app.py)
    └─ api/trophy.py        (couche métier, requêtes SQL lecture seule)
         └─ extractor/hfsql.py   (client ODBC iODBC ANSI en ctypes)
-             └─ driver/wd250hfo64.so  →  SERVEUR1:4902 (HFSQL, via Tailscale)
+             └─ driver/wd250hfo64.so  →  scm-ac-01.med.lan:4902 (HFSQL, LAN ou Tailscale)
 ```
 
 ## Pourquoi ce montage
@@ -26,7 +26,7 @@ FastAPI (api/app.py)
 
 1. iODBC : `sudo apt install libiodbc2 libiodbc2-dev`
 2. Pilote HFSQL v25 Linux 64 bits dans `driver/` (voir `driver/README.md`).
-3. Réseau : accès à `SERVEUR1:4902` (ici via Tailscale, ACL ouverte).
+3. Réseau : accès à `scm-ac-01.med.lan:4902` (réseau du cabinet, ou Tailscale).
 4. Compte HFSQL **en lecture seule** sur la base `Datas`.
 5. Dépendances : `uv sync` (crée `.venv` depuis `pyproject.toml` / `uv.lock`).
    Tests : `uv run pytest`.
@@ -118,8 +118,9 @@ docker run -d --name trophy-api --network host \
 - **`settings.json` monté dans `/config`** (lecture seule) : il porte les
   identifiants HFSQL et la clé d'API ; jamais dans l'image. Le chemin interne
   est fixé par `TROPHY_SETTINGS=/config/settings.json`.
-- **`--network host`** : le serveur HFSQL est une IP **Tailscale**
-  (`settings.json → hfsql.server`), joignable seulement via le réseau de l'hôte.
+- **`--network host`** (image lancée seule) : moyen simple de joindre le serveur
+  HFSQL (`settings.json → hfsql.server`). En prod, le stack compose utilise
+  plutôt un réseau bridge (voir **Production**) ; `host` n'est pas obligatoire.
 - **Jamais `--workers > 1`** : une seule connexion HFSQL par process.
 - Connexion perdue (serveur Trophy redémarré / coupure réseau) → le process
   sort ; laisser Docker le relancer (`--restart unless-stopped`) comme systemd.
@@ -134,7 +135,58 @@ deploy/release.sh 1.0.0     # builde trophy-api:1.0.0 (+ :latest), puis crée le
 
 Le tag git n'est créé que si le build réussit.
 
-## Exploitation (systemd conseillé)
+## Production (stack compose `/srv/compose/cabinet`)
 
-Vu la contrainte « une seule connexion par process », faire superviser le
-service avec redémarrage automatique (voir `deploy/trophy-api.service`).
+En prod, l'API tourne dans le stack Docker Compose **cabinet** (avec Sterilog et
+MediRappel). Elle est sur le réseau **bridge** `cabinet` (pas `--network host`)
+et joint le serveur HFSQL `scm-ac-01.med.lan:4902` par le routage de l'hôte —
+réseau du cabinet ou Tailscale, indifféremment.
+
+Arborescence (ce qui n'est pas dans l'image vit ici, sauvegardé d'un bloc) :
+
+```
+/srv/compose/cabinet/
+├── compose.yaml                  # services trophy / sterilog / medirappel
+├── .env                          # versions d'images + ports (hors git, chmod 600)
+└── trophy/
+    └── config/
+        └── settings.json         # identifiants HFSQL + clé d'API
+```
+
+Service `trophy` (profil durci `x-hardened` partagé : `read_only`, `tmpfs /tmp`,
+`cap_drop ALL`, `no-new-privileges`, `restart: unless-stopped`, réseau `cabinet`) :
+
+```yaml
+trophy:
+  <<: *hardened
+  image: trophy-api:${TROPHY_VERSION}   # version choisie dans .env
+  user: 10011:10011                     # app_trophy (uid:gid)
+  ports:
+    - "127.0.0.1:8333:8333"             # lié à la loopback de l'hôte
+  environment:
+    TZ: Europe/Paris
+  volumes:
+    - ./trophy/config:/config:ro        # settings.json monté en lecture seule
+```
+
+- **Port** publié sur `127.0.0.1` seulement ; l'accès distant passe par un
+  `tailscale serve` posé sur l'hôte, jamais d'exposition publique directe.
+- **`settings.json`** appartient à `app_trophy:app_config` (droits `660`) ; le
+  conteneur tourne en `10011:10011` = `app_trophy`, il le lit donc comme
+  propriétaire.
+- Entre conteneurs du stack, l'API répond à `http://trophy:8333`.
+
+### Déployer une nouvelle version
+
+```bash
+deploy/release.sh X.Y.Z                      # build l'image + tag git (dans ce dépôt)
+# puis sur l'hôte, dans /srv/compose/cabinet :
+#   éditer .env → TROPHY_VERSION=X.Y.Z
+docker compose up -d trophy
+```
+
+## Exploitation sans compose (systemd)
+
+Alternative à Docker, hors du stack cabinet. Vu la contrainte « une seule
+connexion par process », faire superviser le service avec redémarrage
+automatique (voir `deploy/trophy-api.service`).

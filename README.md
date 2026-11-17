@@ -95,6 +95,12 @@ curl -H "X-API-Key: $API_KEY" \
 - Clé API obligatoire ; la garder hors du dépôt.
 - Accès strictement **lecture seule** côté HFSQL (compte dédié sans droit
   d'écriture) : ne jamais écrire dans la base Trophy.
+- **Logs** : le journal d'accès uvicorn est désactivé (`--no-access-log` dans
+  le Dockerfile / le service) car les URL portent des données patients (nom via
+  `?q=`, identifiant via `/patients/{num}`). Seules les erreurs sont tracées
+  (sur stderr). Attention : un message d'erreur HFSQL contient le **SQL** de la
+  requête — une recherche en échec peut donc y laisser un nom. En tenir compte
+  avant tout export de logs hors de la machine.
 - À traiter en parallèle, côté serveur : les partages Windows
   `CSDataTrophyGestion`, `TW`, `DIS`, `Users` sont ouverts à `Tout le monde`.
 
@@ -115,8 +121,10 @@ docker run -d --name trophy-api --network host \
 - **`--network host`** : le serveur HFSQL est une IP **Tailscale**
   (`settings.json → hfsql.server`), joignable seulement via le réseau de l'hôte.
 - **Jamais `--workers > 1`** : une seule connexion HFSQL par process.
-- Serveur HS → le process sort (SQLSTATE 08xxx) ; laisser Docker le relancer
-  (`--restart unless-stopped`) comme systemd.
+- Connexion perdue (serveur Trophy redémarré / coupure réseau) → le process
+  sort ; laisser Docker le relancer (`--restart unless-stopped`) comme systemd.
+  La reconnexion en vol est impossible (le pilote segfault), d'où ce « exit +
+  relance » qui repart sur une connexion saine.
 
 ### Release (tag git semver → image à cette version)
 

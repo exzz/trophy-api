@@ -135,6 +135,18 @@ deploy/release.sh 1.0.0     # builde trophy-api:1.0.0 (+ :latest), puis crée le
 
 Le tag git n'est créé que si le build réussit.
 
+### Dépôt
+
+Code hébergé sur GitHub : **https://github.com/exzz/trophy-api**. Pousser le
+code et les tags de version d'un coup :
+
+```bash
+git push --follow-tags
+```
+
+> `settings.json` (identifiants + clé d'API) est **git-ignored** et ne doit
+> jamais être committé ; seul `settings.example.json` (placeholders) l'est.
+
 ## Production (stack compose `/srv/compose/cabinet`)
 
 En prod, l'API tourne dans le stack Docker Compose **cabinet** (avec Sterilog et
